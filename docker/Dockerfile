@@ -1,37 +1,24 @@
 ###
-# STAGE: zig-builder
+# STAGE: builder
 # This stage is used to build the SurrealDB linux binary
-# We use zigbuilder so we can target a specific GLIBC version
 ###
 
-FROM docker.io/ubuntu:22.04 as zig-builder
+FROM docker.io/rockylinux:8 as builder
 
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y curl patch clang gpg build-essential git jq
+RUN yum install -y llvm-toolset git cmake patch zlib-devel python3.11
 
 # Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh
 RUN sh /tmp/rustup.sh -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install Zig (for cross-compilation)
-RUN curl -sSfL https://ziglang.org/download/index.json | \
-    jq --arg arch "$(uname -m)" -r '.["0.11.0"][$arch + "-linux"].tarball' | \
-    xargs curl -sSfL --output zig.tar.xz && \
-    mkdir /usr/local/zig && tar -xf  zig.tar.xz --strip-components=1 -C /usr/local/zig
-ENV PATH="/usr/local/zig:${PATH}"
-
 RUN rustup target add x86_64-unknown-linux-gnu
 RUN rustup target add aarch64-unknown-linux-gnu
 
-# Install cargo-zigbuild
-RUN cargo install cargo-zigbuild
-
-# Install surrealml dependencies
-RUN apt-get install -y libpython3-dev
-
 WORKDIR /surrealdb
-ENTRYPOINT [ "cargo", "zigbuild" ]
+
+ENTRYPOINT ["scl", "enable", "gcc-toolset-13"]
+CMD [ "bash" ]
 
 ###
 # Final Images

@@ -348,9 +348,8 @@ jobs:
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=$tmpdir/lib
               fi
 
-              docker build -t surrealdb-local/zig-builder --target zig-builder -f docker/Dockerfile .
+              docker build -t surrealdb-local/builder --target builder -f docker/Dockerfile .
 
-              # The target specifies the GLIBC version (2.18, as Rust fails to link with 2.17)
               docker run \
                 --rm -t \
                 -v $(pwd):/surrealdb \
@@ -358,13 +357,15 @@ jobs:
                 -e ORT_STRATEGY=$ORT_STRATEGY \
                 -e ORT_LIB_LOCATION=$ORT_LIB_LOCATION \
                 -v $ORT_LIB_LOCATION:$ORT_LIB_LOCATION \
-                surrealdb-local/zig-builder \
-                  --target x86_64-unknown-linux-gnu.2.18 --features ${features} --release --locked
+                surrealdb-local/builder \
+                  cargo build --target x86_64-unknown-linux-gnu --features ${features} --release --locked
 
               cp target/release/surreal surreal
 
-              # Debian 8 uses GLIBC 2.19, verify that the binary works there
-              docker run --platform linux/amd64  --rm -t -v ./surreal:/surreal debian:8 /surreal version
+              # Verify the binary is compatible with various Linux distributions
+              docker run --platform linux/amd64 --rm -t -v ./surreal:/surreal ubuntu:20.04 /surreal version
+              docker run --platform linux/amd64 --rm -t -v ./surreal:/surreal rockylinux:8 /surreal version
+              docker run --platform linux/amd64 --rm -t -v ./surreal:/surreal debian:11 /surreal version
 
               # Package
               chmod +x surreal
@@ -394,9 +395,8 @@ jobs:
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=$tmpdir/lib
               fi
 
-              docker build -t surrealdb-local/zig-builder --target zig-builder -f docker/Dockerfile .
+              docker build -t surrealdb-local/builder --target builder -f docker/Dockerfile .
 
-              # The target specifies the GLIBC version (2.18, as Rust fails to link with 2.17)
               docker run \
                 --rm -t \
                 -v $(pwd):/surrealdb \
@@ -404,13 +404,15 @@ jobs:
                 -e ORT_STRATEGY=$ORT_STRATEGY \
                 -e ORT_LIB_LOCATION=$ORT_LIB_LOCATION \
                 -v $ORT_LIB_LOCATION:$ORT_LIB_LOCATION \
-                surrealdb-local/zig-builder \
-                  --target aarch64-unknown-linux-gnu.2.18 --features ${features} --release --locked
+                surrealdb-local/builder \
+                  cargo build --target aarch64-unknown-linux-gnu --features ${features} --release --locked
 
               cp target/release/surreal surreal
 
-              # Debian 8 uses GLIBC 2.19, verify that the binary works there
-              docker run --platform linux/arm64 --rm -t -v ./surreal:/surreal debian:8 /surreal version
+              # Verify the binary is compatible with various Linux distributions
+              docker run --platform linux/arm64 --rm -t -v ./surreal:/surreal ubuntu:20.04 /surreal version
+              docker run --platform linux/arm64 --rm -t -v ./surreal:/surreal rockylinux:8 /surreal version
+              docker run --platform linux/arm64 --rm -t -v ./surreal:/surreal debian:11 /surreal version
 
               # Package
               chmod +x surreal

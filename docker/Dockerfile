@@ -5,7 +5,7 @@
 
 FROM docker.io/rockylinux:8 as builder
 
-RUN yum install -y llvm-toolset git cmake patch zlib-devel python3.11
+RUN yum install -y gcc-toolset-13 git cmake patch zlib-devel python3.11
 
 # Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh
@@ -17,8 +17,10 @@ RUN rustup target add aarch64-unknown-linux-gnu
 
 WORKDIR /surrealdb
 
-ENTRYPOINT ["scl", "enable", "gcc-toolset-13"]
-CMD [ "bash" ]
+COPY docker/builder-entrypoint.sh /builder-entrypoint.sh
+RUN chmod +x /builder-entrypoint.sh
+
+ENTRYPOINT ["/builder-entrypoint.sh"]
 
 ###
 # Final Images

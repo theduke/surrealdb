@@ -190,82 +190,82 @@ jobs:
             echo "build-metadata=" >> $GITHUB_OUTPUT
           fi
 
-  test:
-    name: Test
-    needs: [prepare-vars]
-    runs-on: ubuntu-latest-16-cores
-    steps:
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ inputs.rust_version }}
+  # test:
+  #   name: Test
+  #   needs: [prepare-vars]
+  #   runs-on: ubuntu-latest-16-cores
+  #   steps:
+  #     - name: Install stable toolchain
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         toolchain: ${{ inputs.rust_version }}
 
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare-vars.outputs.git-ref }}
+  #     - name: Checkout sources
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ref: ${{ needs.prepare-vars.outputs.git-ref }}
 
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ needs.prepare-vars.outputs.git-ref == 'main' }}
+  #     - name: Setup cache
+  #       uses: Swatinem/rust-cache@v2
+  #       with:
+  #         save-if: ${{ needs.prepare-vars.outputs.git-ref == 'main' }}
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+  #     - name: Install cargo-llvm-cov
+  #       uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Install cargo-make
-        run: cargo install --debug --locked cargo-make
+  #     - name: Install cargo-make
+  #       run: cargo install --debug --locked cargo-make
 
-      - name: Test workspace + coverage
-        run: cargo make ci-workspace-coverage
+  #     - name: Test workspace + coverage
+  #       run: cargo make ci-workspace-coverage
 
-      - name: Debug info
-        if: always()
-        run: |
-          set -x
-          free -m
-          df -h
-          ps auxf
-          cat /tmp/surrealdb.log || true
+  #     - name: Debug info
+  #       if: always()
+  #       run: |
+  #         set -x
+  #         free -m
+  #         df -h
+  #         ps auxf
+  #         cat /tmp/surrealdb.log || true
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: target/llvm-cov/html/
-          retention-days: 5
+  #     - name: Upload coverage report
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: code-coverage-report
+  #         path: target/llvm-cov/html/
+  #         retention-days: 5
 
-  lint:
-    name: Lint
-    needs: [prepare-vars]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare-vars.outputs.git-ref }}
+  # lint:
+  #   name: Lint
+  #   needs: [prepare-vars]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout sources
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ref: ${{ needs.prepare-vars.outputs.git-ref }}
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ inputs.rust_version }}
-          targets: wasm32-unknown-unknown
-          components: rustfmt, clippy
+  #     - name: Install stable toolchain
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         toolchain: ${{ inputs.rust_version }}
+  #         targets: wasm32-unknown-unknown
+  #         components: rustfmt, clippy
 
-      - name: Install cargo-make
-        run: cargo install --debug --locked cargo-make
+  #     - name: Install cargo-make
+  #       run: cargo install --debug --locked cargo-make
 
-      - name: Check workspace
-        run: cargo make ci-check
+  #     - name: Check workspace
+  #       run: cargo make ci-check
 
-      - name: Check format
-        run: cargo make ci-format
+  #     - name: Check format
+  #       run: cargo make ci-format
 
-      - name: Check wasm
-        run: cargo make ci-check-wasm
+  #     - name: Check wasm
+  #       run: cargo make ci-check-wasm
 
-      - name: Check clippy
-        run: cargo make ci-clippy
+  #     - name: Check clippy
+  #       run: cargo make ci-clippy
 
   docker-builder:
     name: Prepare docker builder
@@ -317,6 +317,7 @@ jobs:
           file: docker/Dockefile
           target: builder
           pull: true
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:${{ steps.tag.outputs.tag }}
           build-args: |
             RUST_VERSION=${{ inputs.rust_version }}

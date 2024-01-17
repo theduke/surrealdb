@@ -311,7 +311,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          file: docker/Dockefile
+          file: ./docker/Dockefile
           target: builder
           pull: true
           push: true
@@ -521,22 +521,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.prepare-vars.outputs.git-ref }}
-
-      - name: Checkout docker
-        uses: actions/checkout@v4
-        with:
-          path: _docker
-
-      # Replace docker files. It allows us to test new Dockerfiles with workflow_dispatch and a custom git ref.
-      # When triggered by a push or a schedule, this git ref will be the same as 'inputs.git-ref'
-      - name: Replace docker files
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          rm -rf docker .dockerignore
-          mv _docker/docker .
-          mv _docker/.dockerignore .
-          rm -rf _docker
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable

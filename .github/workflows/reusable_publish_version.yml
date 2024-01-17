@@ -299,6 +299,7 @@ jobs:
           ls -lah
           ls -lah docker
           cat docker/Dockerfile
+          cat .dockerignore
 
           # Use the github branch name so we can use modified builders on custom branches
           tag=$(echo ${{ github.ref_name }} | sed -e 's/[^a-zA-Z0-9]/-/g')

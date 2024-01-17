@@ -29,10 +29,6 @@ on:
         required: false
       DOCKER_PASS:
         required: false
-      AWS_CI_ACCESS_KEY_ID:
-        required: false
-      AWS_CI_SECRET_ACCESS_KEY:
-        required: false
 
 defaults:
   run:
@@ -43,22 +39,9 @@ jobs:
     name: Prepare steps
     runs-on: ubuntu-latest
     outputs:
-      with-ecr: ${{ steps.aws-credentials.outputs.with-ecr }}
       tag-prefix: ${{ steps.tag-prefix.outputs.tag-prefix }}
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Check if AWS credentials are set
-        id: aws-credentials
-        run: |
-          if [[ "${{ secrets.AWS_CI_ACCESS_KEY_ID }}" == "" ]]; then
-            echo "###"
-            echo "### AWS credentials are not set. Will skip any AWS ECR action."
-            echo "###"
-
-            echo "with-ecr=false" >> $GITHUB_OUTPUT
-          else
-            echo "with-ecr=true" >> $GITHUB_OUTPUT
-          fi
       - name: Sanitize tag name
         id: tag-prefix
         run: |
@@ -117,19 +100,6 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Configure AWS credentials
-        if: ${{ needs.prepare.outputs.with-ecr == 'true' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_CI_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_CI_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        if: ${{ needs.prepare.outputs.with-ecr == 'true' }}
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -141,7 +111,6 @@ jobs:
         with:
           context: artifacts
           load: true
-          push: ${{ needs.prepare.outputs.with-ecr == 'true' }} # Push to CI registry if AWS credentials are set
           platforms: linux/amd64,linux/arm64
           file: docker/Dockefile
           target: ${{ matrix.build-target }}
@@ -152,14 +121,13 @@ jobs:
       # Start the docker image as server and wait until it is ready
       - name: Test the Docker image
         run: |
-          docker run --rm ${{ steps.build.outputs.imageid }} version
+          docker run --rm surrealdb-ci:${{ steps.build.outputs.imageid }} version
 
       - name: Push to DockerHub
         uses: docker/build-push-action@v5
         if: ${{ inputs.push }}
         with:
           context: artifacts
-          load: true
           push: true
           platforms: linux/amd64,linux/arm64
           file: docker/Dockefile
@@ -173,7 +141,6 @@ jobs:
         if: ${{ inputs.push && inputs.latest }}
         with:
           context: artifacts
-          load: true
           push: true
           platforms: linux/amd64,linux/arm64
           file: docker/Dockefile

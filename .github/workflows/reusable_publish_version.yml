@@ -314,8 +314,8 @@ jobs:
           cache-from: |
             type=registry,ref=${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
             type=registry,ref=${{ steps.image.outputs.name }}:main
+          cache-to: type=inline
           push: true
-          pull: true
           tags: ${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
           build-args: |
             RUST_VERSION=${{ inputs.rust_version }}

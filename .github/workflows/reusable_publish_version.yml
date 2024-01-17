@@ -272,7 +272,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare-vars]
     outputs:
-      imageid: ${{ steps.build.outputs.imageid }}
+      name: ${{ steps.image.outputs.name }}
+      tag: ${{ steps.image.outputs.tag }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -291,14 +292,15 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Prepare tag name
-        id: tag
+      - name: Prepare docker image name
+        id: image
         run: |
           set -x
 
           # Use the github branch name so we can use modified builders on custom branches
           tag=$(echo ${{ github.ref_name }} | sed -e 's/[^a-zA-Z0-9]/-/g')
 
+          echo "name=${{ steps.login-ecr.outputs.registry }}/surrealdb-builder" >> $GITHUB_OUTPUT
           echo "tag=${tag}" >> $GITHUB_OUTPUT
 
       - name: Build & Push builder image
@@ -310,10 +312,10 @@ jobs:
           file: ./docker/Dockerfile
           target: builder
           cache-from: |
-            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:${{ steps.tag.outputs.tag }}
-            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:main
+            type=registry,ref=${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
+            type=registry,ref=${{ steps.image.outputs.name }}:main
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:${{ steps.tag.outputs.tag }}
+          tags: ${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
           build-args: |
             RUST_VERSION=${{ inputs.rust_version }}
 
@@ -415,12 +417,13 @@ jobs:
 
               docker run \
                 --rm -t \
+                --pull always \
                 -v $(pwd):/surrealdb \
                 -e SURREAL_BUILD_METADATA=$SURREAL_BUILD_METADATA \
                 -e ORT_STRATEGY=$ORT_STRATEGY \
                 -e ORT_LIB_LOCATION=$ORT_LIB_LOCATION \
                 -v $ORT_LIB_LOCATION:$ORT_LIB_LOCATION \
-                ${{ needs.docker-builder.outputs.imageid }} \
+                ${{ needs.docker-builder.outputs.name }}:${{ needs.docker-builder.outputs.tag }} \
                   --target x86_64-unknown-linux-gnu --features ${features} --release --locked
 
               cp target/release/surreal surreal
@@ -460,12 +463,13 @@ jobs:
 
               docker run \
                 --rm -t \
+                --pull always \
                 -v $(pwd):/surrealdb \
                 -e SURREAL_BUILD_METADATA=$SURREAL_BUILD_METADATA \
                 -e ORT_STRATEGY=$ORT_STRATEGY \
                 -e ORT_LIB_LOCATION=$ORT_LIB_LOCATION \
                 -v $ORT_LIB_LOCATION:$ORT_LIB_LOCATION \
-                ${{ needs.docker-builder.outputs.imageid }} \
+                ${{ needs.docker-builder.outputs.name }}:${{ needs.docker-builder.outputs.tag }} \
                   --target aarch64-unknown-linux-gnu --features ${features} --release --locked
 
               cp target/release/surreal surreal

@@ -39,6 +39,21 @@ on:
         type: boolean
         default: true
         description: "Enable ML support in binaries"
+      rust_version:
+        required: false
+        type: string
+        default: "1.74.1"
+        description: "The Rust version to use for building binaries"
+      onnx_version:
+        required: false
+        type: string
+        default: "1.16.3"
+        description: "The ONNX library version"
+    secrets:
+      AWS_CI_ACCESS_KEY_ID:
+        description: "AWS access key ID"
+      AWS_CI_SECRET_ACCESS_KEY:
+        description: "AWS secret access key"
 
 defaults:
   run:
@@ -56,7 +71,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.74.1
+          toolchain: ${{ inputs.rust_version }}
 
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -183,7 +198,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.71.1
+          toolchain: ${{ inputs.rust_version }}
 
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -233,7 +248,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.71.1
+          toolchain: ${{ inputs.rust_version }}
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
 
@@ -252,9 +267,63 @@ jobs:
       - name: Check clippy
         run: cargo make ci-clippy
 
+  docker-builder:
+    name: Prepare docker builder
+    runs-on: ubuntu-latest
+    needs: [prepare-vars]
+    outputs:
+      imageid: ${{ steps.build.outputs.imageid }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CI_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CI_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Prepare tag name
+        id: tag
+        run: |
+          set -x
+
+          // Use the github branch name so we can use modified builders on PRs
+          //
+          // Use either the pull request's branch name or the git ref name. Then parse it to remove any special characters and replace them with dashes.
+          // This is needed because Docker does not allow special characters in image tags.
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            tag=$(echo ${{ github.head_ref }} | sed -e 's/[^a-zA-Z0-9]/-/g')
+          else
+            tag=$(echo ${{ github.ref }} | sed -e 's/[^a-zA-Z0-9]/-/g')
+          fi
+
+          echo "tag=${tag}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push builder image
+        uses: docker/build-push-action@v5
+        id: build
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: docker/Dockefile
+          target: builder
+          pull: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:${{ steps.tag.outputs.tag }}
+          build-args: |
+            RUST_VERSION=${{ inputs.rust_version }}
+
   build:
     name: Build ${{ matrix.arch }} binary
-    needs: [prepare-vars]
+    needs: [prepare-vars, docker-builder]
     strategy:
       fail-fast: false
       matrix:
@@ -280,7 +349,7 @@ jobs:
 
                 # Download libonnxruntime's static library and tell ORT crate to use it
                 mkdir /tmp/onnxruntime
-                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v1.16.3/onnxruntime-osx-x86_64-static_lib-1.16.3.tgz | \
+                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v${{ inputs.onnx_version }}/onnxruntime-osx-x86_64-static_lib-${{ inputs.onnx_version }}.tgz | \
                   tar -xz -C /tmp/onnxruntime/
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=/tmp/onnxruntime/lib
               fi
@@ -315,7 +384,7 @@ jobs:
 
                 # Download libonnxruntime's static library and tell ORT crate to use it
                 mkdir /tmp/onnxruntime
-                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v1.16.3/onnxruntime-osx-arm64-static_lib-1.16.3.tgz | \
+                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v${{ inputs.onnx_version }}/onnxruntime-osx-arm64-static_lib-${{ inputs.onnx_version }}.tgz | \
                   tar -xz -C /tmp/onnxruntime/
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=/tmp/onnxruntime/lib
               fi
@@ -343,12 +412,10 @@ jobs:
 
                 # Download libonnxruntime's static library and tell ORT crate to use it
                 tmpdir=$(mktemp -d)
-                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v1.16.3/onnxruntime-linux-x64-static_lib-1.16.3.tgz | \
+                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v${{ inputs.onnx_version }}/onnxruntime-linux-x64-static_lib-${{ inputs.onnx_version }}.tgz | \
                   tar -xz -C $tmpdir
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=$tmpdir/lib
               fi
-
-              docker build -t surrealdb-local/builder --target builder -f docker/Dockerfile .
 
               docker run \
                 --rm -t \
@@ -357,8 +424,8 @@ jobs:
                 -e ORT_STRATEGY=$ORT_STRATEGY \
                 -e ORT_LIB_LOCATION=$ORT_LIB_LOCATION \
                 -v $ORT_LIB_LOCATION:$ORT_LIB_LOCATION \
-                surrealdb-local/builder \
-                  cargo build --target x86_64-unknown-linux-gnu --features ${features} --release --locked
+                ${{ needs.docker-builder.outputs.imageid }} \
+                  --target x86_64-unknown-linux-gnu --features ${features} --release --locked
 
               cp target/release/surreal surreal
 
@@ -390,12 +457,10 @@ jobs:
 
                 # Download libonnxruntime's static library and tell ORT crate to use it
                 tmpdir=$(mktemp -d)
-                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v1.16.3/onnxruntime-linux-aarch64-static_lib-1.16.3.tgz | \
+                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v${{ inputs.onnx_version }}/onnxruntime-linux-aarch64-static_lib-${{ inputs.onnx_version }}.tgz | \
                   tar -xz -C $tmpdir
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=$tmpdir/lib
               fi
-
-              docker build -t surrealdb-local/builder --target builder -f docker/Dockerfile .
 
               docker run \
                 --rm -t \
@@ -404,8 +469,8 @@ jobs:
                 -e ORT_STRATEGY=$ORT_STRATEGY \
                 -e ORT_LIB_LOCATION=$ORT_LIB_LOCATION \
                 -v $ORT_LIB_LOCATION:$ORT_LIB_LOCATION \
-                surrealdb-local/builder \
-                  cargo build --target aarch64-unknown-linux-gnu --features ${features} --release --locked
+                ${{ needs.docker-builder.outputs.imageid }} \
+                  --target aarch64-unknown-linux-gnu --features ${features} --release --locked
 
               cp target/release/surreal surreal
 
@@ -440,7 +505,7 @@ jobs:
 
                 # Download libonnxruntime's static library and tell ORT crate to use it
                 tmp_dir=$(mktemp -d)
-                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v1.16.3/onnxruntime-win-x64-static_lib-1.16.3.zip -o $tmp_dir/onnxruntime.zip
+                curl -sSL https://github.com/surrealdb/onnxruntime-build/releases/download/v${{ inputs.onnx_version }}/onnxruntime-win-x64-static_lib-${{ inputs.onnx_version }}.zip -o $tmp_dir/onnxruntime.zip
                 unzip -d $tmp_dir $tmp_dir/onnxruntime.zip
                 export ORT_STRATEGY=system ORT_LIB_LOCATION=$tmp_dir/lib
               fi
@@ -478,7 +543,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.71.1
+          toolchain: ${{ inputs.rust_version }}
           targets: ${{ matrix.arch }}
 
       - name: Output package versions
@@ -530,7 +595,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.74.1
+          toolchain: ${{ inputs.rust_version }}
 
       - name: Install release-plz
         run: cargo install --force --locked --version 0.3.30 release-plz

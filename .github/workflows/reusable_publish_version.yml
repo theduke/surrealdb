@@ -427,7 +427,7 @@ jobs:
                 ${{ needs.docker-builder.outputs.name }}:${{ needs.docker-builder.outputs.tag }} \
                   --target x86_64-unknown-linux-gnu --features ${features} --release --locked
 
-              cp target/release/surreal surreal
+              cp target/x86_64-unknown-linux-gnu/release/surreal surreal
 
               # Verify the binary is compatible with various Linux distributions
               docker run --platform linux/amd64 --rm -t -v ./surreal:/surreal ubuntu:20.04 /surreal version
@@ -473,7 +473,7 @@ jobs:
                 ${{ needs.docker-builder.outputs.name }}:${{ needs.docker-builder.outputs.tag }} \
                   --target aarch64-unknown-linux-gnu --features ${features} --release --locked
 
-              cp target/release/surreal surreal
+              cp target/aarch64-unknown-linux-gnu/release/surreal surreal
 
               # Verify the binary is compatible with various Linux distributions
               docker run --platform linux/arm64 --rm -t -v ./surreal:/surreal ubuntu:20.04 /surreal version

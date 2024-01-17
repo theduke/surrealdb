@@ -296,11 +296,6 @@ jobs:
         run: |
           set -x
 
-          ls -lah
-          ls -lah docker
-          cat docker/Dockerfile
-          cat .dockerignore
-
           # Use the github branch name so we can use modified builders on custom branches
           tag=$(echo ${{ github.ref_name }} | sed -e 's/[^a-zA-Z0-9]/-/g')
 
@@ -312,12 +307,11 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          file: ./docker/Dockefile
+          file: ./docker/Dockerfile
           target: builder
           cache-from: |
             type=registry,ref=${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:${{ steps.tag.outputs.tag }}
             type=registry,ref=${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:main
-          # pull: true
           push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/surrealdb-builder:${{ steps.tag.outputs.tag }}
           build-args: |

@@ -78,24 +78,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.git-ref }}
-
-      - name: Checkout docker
-        uses: actions/checkout@v4
-        with:
-          path: _docker
-
-      # Replace docker files. It allows us to test new Dockerfiles with workflow_dispatch and a custom git ref.
-      # When triggered by a push or a schedule, this git ref will be the same as 'inputs.git-ref'
-      - name: Replace docker files
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          rm -rf docker .dockerignore
-          mv _docker/docker .
-          mv _docker/.dockerignore .
-          rm -rf _docker
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -105,13 +87,26 @@ jobs:
         with:
           path: artifacts
 
-      - name: Build Docker image
+      - name: Build Docker image (amd64)
         uses: docker/build-push-action@v5
-        id: build
+        id: build-amd64
         with:
           context: artifacts
           load: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          file: docker/Dockefile
+          target: ${{ matrix.build-target }}
+          tags: surrealdb-ci:${{ inputs.tag-prefix }}${{ matrix.tag-suffix }}-${{ github.run_id }}
+          build-args: |
+            ARTIFACT_PREFIX=surreal-${{ inputs.tag-prefix }}
+
+      - name: Build Docker image (arm64)
+        uses: docker/build-push-action@v5
+        id: build-arm64
+        with:
+          context: artifacts
+          load: true
+          platforms: linux/amd64
           file: docker/Dockefile
           target: ${{ matrix.build-target }}
           tags: surrealdb-ci:${{ inputs.tag-prefix }}${{ matrix.tag-suffix }}-${{ github.run_id }}
@@ -121,7 +116,8 @@ jobs:
       # Start the docker image as server and wait until it is ready
       - name: Test the Docker image
         run: |
-          docker run --rm surrealdb-ci:${{ steps.build.outputs.imageid }} version
+          docker run --platform linux/amd64 --rm surrealdb-ci:${{ steps.build-amd64.outputs.imageid }} version
+          docker run --platform linux/arm64 --rm surrealdb-ci:${{ steps.build-arm64.outputs.imageid }} version
 
       - name: Push to DockerHub
         uses: docker/build-push-action@v5

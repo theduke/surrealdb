@@ -296,15 +296,12 @@ jobs:
         run: |
           set -x
 
-          # Use the github branch name so we can use modified builders on PRs
-          #
-          # Use either the pull request's branch name or the git ref name. Then parse it to remove any special characters and replace them with dashes.
-          # This is needed because Docker does not allow special characters in image tags.
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            tag=$(echo ${{ github.head_ref }} | sed -e 's/[^a-zA-Z0-9]/-/g')
-          else
-            tag=$(echo ${{ github.ref }} | sed -e 's/[^a-zA-Z0-9]/-/g')
-          fi
+          ls -lah
+          ls -lah docker
+          cat docker/Dockerfile
+
+          # Use the github branch name so we can use modified builders on custom branches
+          tag=$(echo ${{ github.ref_name }} | sed -e 's/[^a-zA-Z0-9]/-/g')
 
           echo "tag=${tag}" >> $GITHUB_OUTPUT
 

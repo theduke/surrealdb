@@ -113,7 +113,7 @@ jemallocator = "0.5.4"
 
 # override surrealml-core version using a github branch from the surrealdb org
 [patch.crates-io]
-surrealml-core = { git = "https://github.com/surrealdb/surrealml", branch = "static-lib" }
+surrealml-core = { git = "https://github.com/surrealdb/surrealml", branch = "support-static-linking" }
 
 [dev-dependencies]
 assert_fs = "1.0.13"

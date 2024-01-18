@@ -3565,6 +3565,7 @@ dependencies = [
  "half 2.3.1",
  "lazy_static",
  "libc",
+ "libloading",
  "ndarray",
  "tar",
  "thiserror",
@@ -5475,7 +5476,7 @@ dependencies = [
 [[package]]
 name = "surrealml-core"
 version = "0.0.6"
-source = "git+https://github.com/surrealdb/surrealml?branch=static-lib#576b7659ff4e512f4e5220badab33787abb8a279"
+source = "git+https://github.com/surrealdb/surrealml?branch=support-static-linking#174c449e7ccd658f321d3b3007bb610eadff11f3"
 dependencies = [
  "bytes",
  "futures-core",

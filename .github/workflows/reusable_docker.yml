@@ -96,7 +96,7 @@ jobs:
           platforms: linux/amd64
           file: docker/Dockerfile
           target: ${{ matrix.build-target }}
-          tags: surrealdb-ci:${{ inputs.tag-prefix }}${{ matrix.tag-suffix }}-${{ github.run_id }}
+          tags: surrealdb-local:amd64
           build-args: |
             ARTIFACT_PREFIX=surreal-${{ inputs.tag-prefix }}
 
@@ -109,15 +109,15 @@ jobs:
           platforms: linux/amd64
           file: docker/Dockerfile
           target: ${{ matrix.build-target }}
-          tags: surrealdb-ci:${{ inputs.tag-prefix }}${{ matrix.tag-suffix }}-${{ github.run_id }}
+          tags: surrealdb-local:arm64
           build-args: |
             ARTIFACT_PREFIX=surreal-${{ inputs.tag-prefix }}
 
       # Start the docker image as server and wait until it is ready
       - name: Test the Docker image
         run: |
-          docker run --platform linux/amd64 --rm surrealdb-ci:${{ steps.build-amd64.outputs.imageid }} version
-          docker run --platform linux/arm64 --rm surrealdb-ci:${{ steps.build-arm64.outputs.imageid }} version
+          docker run --platform linux/amd64 --rm surrealdb-local:amd64 version
+          docker run --platform linux/arm64 --rm surrealdb-local:arm64 version
 
       - name: Push to DockerHub
         uses: docker/build-push-action@v5

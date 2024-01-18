@@ -43,6 +43,8 @@ ARG ARTIFACT_PREFIX
 
 COPY ${ARTIFACT_PREFIX}.${TARGETOS}-${TARGETARCH}/surreal /surreal
 
+RUN chmod +x /surreal
+
 ENTRYPOINT ["/surreal"]
 
 #
@@ -66,6 +68,8 @@ FROM cgr.dev/chainguard/glibc-dynamic:latest as prod
 ARG SURREALDB_BINARY=target/release/surreal
 
 COPY ${SURREALDB_BINARY} /surreal
+
+RUN chmod +x /surreal
 
 ENTRYPOINT ["/surreal"]
 

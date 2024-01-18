@@ -106,7 +106,7 @@ jobs:
         with:
           context: artifacts
           load: true
-          platforms: linux/amd64
+          platforms: linux/arm64
           file: docker/Dockerfile
           target: ${{ matrix.build-target }}
           tags: surrealdb-local:arm64
@@ -116,6 +116,7 @@ jobs:
       # Start the docker image as server and wait until it is ready
       - name: Test the Docker image
         run: |
+          set -x
           docker run --platform linux/amd64 --rm surrealdb-local:amd64 version
           docker run --platform linux/arm64 --rm surrealdb-local:arm64 version
 

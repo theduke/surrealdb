@@ -31,9 +31,9 @@ ENTRYPOINT ["/builder-entrypoint.sh"]
 ###
 
 #
-# Production image (built on the CI environment)
+# Development image (built on the CI environment)
 #
-FROM --platform=$TARGETPLATFORM cgr.dev/chainguard/glibc-dynamic:latest as prod-ci
+FROM --platform=$TARGETPLATFORM cgr.dev/chainguard/glibc-dynamic:latest-dev as dev-ci
 
 ARG TARGETPLATFORM
 ARG TARGETOS
@@ -41,31 +41,22 @@ ARG TARGETARCH
 
 ARG ARTIFACT_PREFIX
 
+USER root
+
 COPY ${ARTIFACT_PREFIX}.${TARGETOS}-${TARGETARCH}/surreal /surreal
+
+RUN chmod +x /surreal
 
 ENTRYPOINT ["/surreal"]
 
 #
 # Development image (built on the CI environment)
 #
-FROM --platform=$TARGETPLATFORM cgr.dev/chainguard/glibc-dynamic:latest-dev as dev-ci
+FROM --platform=$TARGETPLATFORM cgr.dev/chainguard/glibc-dynamic:latest as prod-ci
 
 ARG TARGETPLATFORM
 
-USER root
-
-COPY --from=prod-ci /surreal /surreal
-
-ENTRYPOINT ["/surreal"]
-
-#
-# Production image (built locally)
-#
-FROM cgr.dev/chainguard/glibc-dynamic:latest as prod
-
-ARG SURREALDB_BINARY=target/release/surreal
-
-COPY ${SURREALDB_BINARY} /surreal
+COPY --from=dev-ci /surreal /surreal
 
 ENTRYPOINT ["/surreal"]
 
@@ -74,8 +65,21 @@ ENTRYPOINT ["/surreal"]
 #
 FROM cgr.dev/chainguard/glibc-dynamic:latest-dev as dev
 
+ARG SURREALDB_BINARY=target/release/surreal
+
+COPY ${SURREALDB_BINARY} /surreal
+
+RUN chmod +x /surreal
+
 USER root
 
-COPY --from=prod /surreal /surreal
+ENTRYPOINT ["/surreal"]
+
+#
+# Production image (built locally)
+#
+FROM cgr.dev/chainguard/glibc-dynamic:latest as prod
+
+COPY --from=dev /surreal /surreal
 
 ENTRYPOINT ["/surreal"]

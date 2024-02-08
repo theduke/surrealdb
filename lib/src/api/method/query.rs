@@ -280,6 +280,10 @@ impl Response {
 		}
 	}
 
+	pub fn into_results(self) -> Vec<Result<Value>> {
+		self.results.into_iter().map(|(_, (_, result))| result).collect()
+	}
+
 	/// Takes and returns records returned from the database
 	///
 	/// A query that only returns one result can be deserialized into an
